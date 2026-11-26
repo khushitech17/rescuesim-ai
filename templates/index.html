@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RescueSim AI – Building Emergency Evacuation Simulator</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></head>
+<body>
+<nav class="topbar"><a class="brand" href="#simulator"><span class="brand-mark">+</span> RescueSim <b>AI</b></a>
+  <span class="tagline">Building Emergency Evacuation Simulator</span>
+  <div class="links"><a href="#simulator">Simulator</a><a href="#occupants">Occupants</a><a href="#compare">Compare</a><a href="#about">About</a></div></nav>
+
+<main id="simulator">
+  <div class="workspace">
+
+    <!-- LEFT: building editor -->
+    <aside class="panel editor" aria-label="Building editor">
+      <h2>Building Editor</h2>
+      <div class="toolbar" role="toolbar">
+        <button class="tool active" data-tool="select"><i class="ico">&#9741;</i>Select</button>
+        <button class="tool" data-tool="occupant"><i class="ico">&#9786;</i>Add Occupant</button>
+        <button class="tool" data-tool="exit"><i class="ico">&#10162;</i>Add Emergency Exit</button>
+        <button class="tool" data-tool="wall"><i class="ico">&#9632;</i>Draw Wall</button>
+        <button class="tool" data-tool="door"><i class="ico">&#9707;</i>Add Door</button>
+        <button class="tool" data-tool="erase"><i class="ico">&#10005;</i>Erase</button>
+      </div>
+      <div class="tool-info"><span class="small-label">Selected tool</span><strong id="toolName">Select</strong>
+        <p id="toolHint" class="small"></p></div>
+      <p id="editMsg" class="msg" role="alert"></p>
+      <p id="selInfo" class="selinfo small"></p>
+
+      <h2>Building</h2>
+      <label class="field">Layout <select id="layoutSelect" aria-label="Building layout"></select></label>
+      <div class="btn-col">
+        <button class="btn" id="reloadBtn">Reload This Layout</button>
+        <button class="btn" id="randomBtn">Random Building</button>
+        <button class="btn" id="clearBtn">Clear Building</button>
+      </div>
+    </aside>
+
+    <!-- CENTRE: architectural floor plan -->
+    <section class="plan-panel" aria-label="Floor plan">
+      <div class="plan-head"><h1 id="planTitle">Loading building…</h1><span id="planMeta" class="small"></span></div>
+      <div class="plan-wrap">
+        <svg id="plan" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Building floor plan">
+          <g id="staticLayer"></g>
+          <g id="routeLayer"></g>
+          <g id="actorLayer"></g>
+          <rect id="hover" class="hover" width="1" height="1" visibility="hidden"/>
+          <rect id="hit" class="hit" fill="transparent"/>
+        </svg>
+      </div>
+
+      <ul class="legend">
+        <li><i class="sw sw-wall"></i>Wall</li><li><i class="sw sw-door"></i>Door (with swing)</li>
+        <li><i class="sw sw-corridor"></i>Corridor</li><li><i class="sw sw-room"></i>Room</li>
+        <li><i class="sw sw-exit">EXIT</i>Emergency exit</li><li><i class="sw sw-person"></i>Occupant</li>
+        <li><i class="sw sw-planned"></i>Planned route</li><li><i class="sw sw-active"></i>Active route</li>
+        <li><i class="sw sw-done"></i>Completed / travelled</li><li><i class="sw sw-wait"></i>Waiting</li>
+        <li><i class="sw sw-trap"></i>Trapped (no route)</li><li><i class="sw sw-block"></i>Blocked (conflict)</li>
+      </ul>
+
+      <h2 class="an-title">Evacuation Analytics</h2>
+      <div class="analytics" aria-label="Evacuation analytics">
+        <div class="m"><span>Total Occupants</span><strong id="sTotal">–</strong></div>
+        <div class="m good"><span>Evacuated</span><strong id="sEvac">–</strong></div>
+        <div class="m"><span>Remaining</span><strong id="sRemain">–</strong></div>
+        <div class="m warn"><span>Waiting</span><strong id="sWait">–</strong></div>
+        <div class="m bad"><span>Trapped</span><strong id="sTrap">–</strong></div>
+        <div class="m purple"><span>Blocked</span><strong id="sBlock">–</strong></div>
+        <div class="m"><span>Explored Nodes</span><strong id="sExp">–</strong></div>
+        <div class="m"><span>Avg Path Length</span><strong id="sAvg">–</strong></div>
+        <div class="m"><span>Execution Time (ms)</span><strong id="sTime">–</strong></div>
+        <div class="m"><span>Simulation Steps</span><strong id="sTick">–</strong></div>
+      </div>
+      <div class="progress-row"><span>Evacuation Progress</span><b id="progressPct">0%</b></div>
+      <div class="progress" aria-label="Evacuation progress"><div id="progressBar"></div></div>
+    </section>
+
+    <!-- RIGHT: simulation controls -->
+    <aside class="panel controls" aria-label="Simulation controls">
+      <h2>Search Algorithm</h2>
+      <div class="algo-list" role="radiogroup">
+        <button class="algo active" data-algo="bfs"><b>BFS</b><span>Queue, level by level. Fewest steps.</span></button>
+        <button class="algo" data-algo="dfs"><b>DFS</b><span>Stack, deep first. Any route.</span></button>
+        <button class="algo" data-algo="astar"><b>A*</b><span>f(n) = g(n) + h(n), Manhattan.</span></button>
+      </div>
+      <p id="algoInfo" class="small muted"></p>
+
+      <h2>Simulation</h2>
+      <div class="btn-col">
+        <button class="btn primary" id="runBtn">Start Simulation</button>
+        <div class="btn-pair"><button class="btn" id="pauseBtn" disabled>Pause</button><button class="btn" id="resumeBtn" disabled>Resume</button></div>
+        <button class="btn" id="resetBtn">Reset</button>
+        <button class="btn" id="previewBtn">Preview Planned Routes</button>
+      </div>
+      <label class="field speed">Simulation speed <span class="muted small">slow &larr; &rarr; fast</span>
+        <input type="range" id="speed" min="1" max="100" value="60"></label>
+      <p id="msg" class="msg"></p>
+
+      <h2>Current Status</h2>
+      <dl class="status">
+        <dt>Algorithm</dt><dd id="sName">–</dd>
+        <dt>Status</dt><dd id="sStatus">–</dd>
+      </dl>
+    </aside>
+  </div>
+
+  <div class="panel table-panel" id="occupants">
+    <div class="table-head"><h2>Occupant Routes</h2><span class="small muted">Click a row to highlight that occupant's route on the plan</span></div>
+    <div class="table-wrap short"><table id="occTable"><thead><tr><th>Occupant</th><th>Status</th><th>Start (row, col)</th><th>Exit</th><th>Planned route (steps)</th><th>Steps taken</th><th>Nodes explored</th></tr></thead><tbody id="occBody"></tbody></table></div>
+  </div>
+</main>
+
+<section id="compare" class="block"><div class="section-head"><h2>Algorithm Comparison</h2><p>One request runs BFS, DFS and A* on the building and occupant positions currently shown on the plan. All numbers are measured, nothing is hard-coded.</p></div>
+  <button class="btn primary" id="compareBtn">Run All &amp; Compare</button>
+  <p id="cmpMsg" class="msg" role="alert"></p>
+  <div class="table-wrap"><table id="cmpTable"><thead><tr><th>Algorithm</th><th>Reachable</th><th>Trapped</th><th>Avg path length</th><th>Total path length</th><th>Nodes explored</th><th>Time (ms)</th><th>Route quality</th></tr></thead><tbody></tbody></table></div>
+  <div id="bars"></div>
+  <p id="cmpNote" class="muted">Press "Run All &amp; Compare" to see the results and a short explanation based on them.</p>
+</section>
+
+<section id="about" class="block"><div class="section-head"><h2>How It Works</h2><p>The AI methods behind the simulation.</p></div>
+  <div class="cards text">
+    <div class="info-card"><h4>The plan is the search grid</h4><p>Every wall, door, corridor and room on the floor plan is drawn from the same 0/1 grid the algorithms search. A door is one free cell cut into a wall; routes can only pass through real openings.</p></div>
+    <div class="info-card"><h4>Search for each person</h4><p>Every occupant runs the chosen search and stops at the nearest reachable exit. If none is reachable, the occupant is marked trapped.</p></div>
+    <div class="info-card"><h4>BFS, DFS and A*</h4><p>BFS (queue) finds the fewest steps. DFS (stack) finds an exit but not always the shortest route. A* uses f(n) = g(n) + h(n) with the Manhattan distance to the closest exit.</p></div>
+    <div class="info-card"><h4>Collision-free movement</h4><p>Two occupants never share a cell. An occupant waits if the next cell is taken. If nobody can move, blocked occupants are re-planned around each other; if that fails, a movement conflict is reported.</p></div>
+    <div class="info-card"><h4>Limits</h4><p>Educational model only: no fire spread, speed differences or panic behaviour. It is NOT a certified or real-world emergency evacuation planning system.</p></div>
+  </div>
+</section>
+<footer>RescueSim AI · Educational AI search simulation · Not a certified emergency evacuation system.</footer>
+<script src="{{ url_for('static', filename='js/simulation.js') }}"></script>
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body></html>
